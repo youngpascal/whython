@@ -15,6 +15,7 @@ TT_DIV      = "DIV"
 TT_LPAREN   = "LPAREN"
 TT_RPAREN   = "RPAREN"
 TT_EOF      = "EOF"
+TT_POWER    = "POWER"
 
 DIGITS = '0123456789'
 
@@ -143,6 +144,9 @@ class Lexer:
             elif self.current_char == '/':
                 tokens.append(Token(TT_DIV, pos_start=self.pos))
                 self.advance()
+            elif self.current_char == '^':
+                tokens.append(Token(TT_POWER, pos_start=self.pos))
+                self.advance()
             elif self.current_char == '(':
                 tokens.append(Token(TT_LPAREN, pos_start=self.pos))
                 self.advance()
@@ -154,6 +158,7 @@ class Lexer:
                 char = self.current_char
                 self.advance()
                 return [], IllegalCharError(pos_start, self.pos, "'" + char + "'")
+
         tokens.append(Token(TT_EOF, pos_start=self.pos))
         return tokens, None
 
@@ -254,20 +259,14 @@ class Parser:
             ))
         return res
 
-    def factor(self):
+    def atom(self):
         res = ParseResult()
         tok = self.current_tok
 
-        if tok.type in (TT_PLUS, TT_MINUS):
+        if tok.type in (TT_INT, TT_FLOAT): 
             res.register(self.advance())
-            factor = res.register(self.factor())
-            if res.error: return res
-            return res.success(UnaryOpNode(tok, factor))
-
-        elif tok.type in (TT_INT, TT_FLOAT): 
-            res.register(self.advance()) #setting up for later
             return res.success(NumberNode(tok))
-
+        
         elif tok.type == TT_LPAREN:
             res.register(self.advance())
             expr = res.register(self.expr())
@@ -280,8 +279,26 @@ class Parser:
                 self.current_tok.pos_start, self.current_tok.pos_end,
                 'Expected )'
             ))
+        
+        return res.failure(IllegalSyntaxError(
+            tok.pos_start, tok.pos_end,
+            'Excepted int, float, +, -, ('
+        ))
 
-        return res.failure(IllegalSyntaxError(tok.pos_start, tok.pos_end, 'Expected int or float'))
+    def power(self):
+        return self.bin_op(self.atom, (TT_POWER, ), self.factor)
+
+    def factor(self):
+        res = ParseResult()
+        tok = self.current_tok
+
+        if tok.type in (TT_PLUS, TT_MINUS):
+            res.register(self.advance())
+            factor = res.register(self.factor())
+            if res.error: return res
+            return res.success(UnaryOpNode(tok, factor))
+
+        return self.power()
         
     def term(self):
         return self.bin_op(self.factor, (TT_MUL, TT_DIV))
@@ -289,15 +306,19 @@ class Parser:
     def expr(self):
         return self.bin_op(self.term, (TT_PLUS, TT_MINUS))
 
-    def bin_op(self, func, ops):
+    def bin_op(self, func_a, ops, func_b=None):
+        if func_b is None:
+            func_b = func_a
+
+
         res = ParseResult()
-        left = res.register(func())
+        left = res.register(func_a())
         if res.error: return res
 
         while self.current_tok.type in ops:
             op_tok = self.current_tok
             res.register(self.advance())
-            right = res.register(func())
+            right = res.register(func_b())
             if res.error: return res
             left = BinOpNode(left, op_tok, right)    
         
@@ -352,6 +373,10 @@ class Number:
     def mult_by(self, other):
         if isinstance(other, Number):
             return Number(self.value * other.value).set_context(self.context), None
+
+    def power_op(self, other):
+        if isinstance(other, Number):
+            return Number(self.value ** other.value).set_context(self.context), None
 
     def div_by(self, other):
         if isinstance(other, Number):
@@ -410,7 +435,8 @@ class Interpreter:
             result, error = left.mult_by(right)   
         elif node.op_tok.type == TT_DIV:
             result, error = left.div_by(right)
-
+        elif node.op_tok.type == TT_POWER:
+            result, error = left.power_op(right)
         if error: 
             return res.failure(error)
         else: 

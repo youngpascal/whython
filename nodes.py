@@ -48,3 +48,13 @@ class UnaryOpNode:
 
     def __repr__(self):
         return f'{self.op_tok}, {self.node}'
+
+class IfNode:
+    def __init__(self, cases, else_case):
+        self.cases = cases
+        self.else_case = else_case
+
+        # set pos_start to the first element of the first tuple, which is expression #1
+        self.pos_start = self.cases[0][0].pos_start
+        # set pos_end to the else_case if there is one, otherwise the last cases' expression
+        self.pos_end = self.else_case or self.cases[len(self.cases) - 1][0].pos_end

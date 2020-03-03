@@ -5,7 +5,7 @@
 from numbers import Number
 from symbols import SymbolTable
 from lexer import Lexer
-from parse import *
+from parse import Parser
 from interpreter import Interpreter
 from context import Context
 

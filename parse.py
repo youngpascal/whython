@@ -79,6 +79,11 @@ class Parser:
                 'Expected )'
             ))
         
+        elif tok.matches(TT_KEYWORD, 'IF'):
+            if_expr = res.register(self.if_expr())
+            if res.error: return res
+            return res.success(if_expr)
+
         return res.failure(IllegalSyntaxError(
             tok.pos_start, tok.pos_end,
             'Excepted int, float, indentifier, +, -, ('
@@ -128,8 +133,79 @@ class Parser:
     def arith_expr(self):
         return self.bin_op(self.term, (TT_PLUS, TT_MINUS))
 
+    def if_expr(self):
+        res = ParseResult()
+        cases = []
+        else_case = None
+
+        # check for IF in tokens, raise error if not found
+        if not self.current_tok.matches(TT_KEYWORD, 'IF'):
+            return res.failure(IllegalSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                'Excepted IF'
+            ))
+
+        #advance one index in tokens
+        res.register_advancement()
+        self.advance()
+
+        #check if the expression is valid
+        condition = res.register(self.expr())
+        if res.error: return res
+
+        # check for THEN in tokens, raise error if not found
+        if not self.current_tok.matches(TT_KEYWORD, 'THEN'):
+            return res.failure(IllegalSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                'Excepted THEN'
+            ))     
+
+        #advance one index in tokens
+        res.register_advancement()
+        self.advance()
+
+        # check for THEN in tokens, raise error if not found
+        # append the condition and expression to cases
+        expr = res.register(self.expr())
+        if res.error: return res
+        cases.append((condition, expr))
+
+        # if the next token is ELIF, loop the above code again 
+        while self.current_tok.matches(TT_KEYWORD, 'ELIF'):
+            res.register_advancement()
+            self.advance()
+
+            condition = res.register(self.expr())
+            if res.error: return res
+
+            if not self.current_tok.matches(TT_KEYWORD, 'THEN'):
+                return res.failure(IllegalSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    'Excepted THEN'
+                ))     
+
+            res.register_advancement()
+            self.advance()
+        
+            expr = res.register(self.expr())
+            if res.error: return res
+            cases.append((condition, expr))
+        
+        # if the next token is ELSE, set the else_case to the expression
+        if self.current_tok.matches(TT_KEYWORD, 'ELSE'):
+            res.register_advancement()
+            self.advance()         
+        
+            expr = res.register(self.expr())
+            if res.error: return res
+            else_case = expr 
+
+        # return a successfull IfNode object
+        return res.success(IfNode(cases, else_case))
+
     def expr(self):
         res = ParseResult()
+
         if self.current_tok.matches(TT_KEYWORD, 'VAR'):
             res.register_advancement()
             self.advance()
@@ -156,6 +232,10 @@ class Parser:
 
             if res.error: return res
             return res.success(VarAssignNode(var_name, expr))
+
+        # Exit the REPL 
+        if self.current_tok.matches(TT_KEYWORD, 'REPL_EXIT'):
+            exit()
 
         node =  res.register(self.bin_op(self.comp_expr, ((TT_KEYWORD, 'AND'), (TT_KEYWORD, 'OR') )))
 

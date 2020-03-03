@@ -74,6 +74,9 @@ class Number:
             return Number(int(1 if self.value == 0 else 0)).set_context(self.context), None
 
     ### UTILITY FUNCTIONS ###                                           
+    def is_true(self):
+        return self.value != 0
+        
     def set_pos(self, pos_start=None, pos_end=None):
         self.pos_start = pos_start
         self.pos_end = pos_end

@@ -9,4 +9,6 @@ while True:
     result, error = main.run('<stdin>', text)
 
     if error: print(error.as_string())
-    else: print(result)
+    elif result: print(result)
+
+    

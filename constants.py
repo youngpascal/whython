@@ -33,5 +33,11 @@ KEYWORDS = [
     'THEN',
     'ELIF',
     'ELSE',
-    'REPL_EXIT'
+    'REPL_EXIT',
+    'FOR',
+    'TO',
+    'STEP',
+    'THEN',
+    'WHILE',
+    'THEN'
 ]

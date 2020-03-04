@@ -84,6 +84,16 @@ class Parser:
             if res.error: return res
             return res.success(if_expr)
 
+        elif tok.matches(TT_KEYWORD, 'FOR'):
+            for_expr = res.register(self.for_expr())
+            if res.error: return res
+            return res.success(for_expr)
+
+        elif tok.matches(TT_KEYWORD, 'WHILE'):
+            while_expr = res.register(self.while_expr())
+            if res.error: return res
+            return res.success(while_expr)
+
         return res.failure(IllegalSyntaxError(
             tok.pos_start, tok.pos_end,
             'Excepted int, float, indentifier, +, -, ('
@@ -203,42 +213,177 @@ class Parser:
         # return a successfull IfNode object
         return res.success(IfNode(cases, else_case))
 
-    def expr(self):
+    def for_expr(self):
         res = ParseResult()
 
-        if self.current_tok.matches(TT_KEYWORD, 'VAR'):
+        # check for FOR in tokens, raise error if not found
+        if not self.current_tok.matches(TT_KEYWORD, 'FOR'):
+            return res.failure(IllegalSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                'Excepted FOR \n'
+            ))
+
+        # advance one index in tokens
+        res.register_advancement()
+        self.advance()
+
+        # check if current token is an IDENTIFIER, raise error if not 
+        if self.current_tok.type != TT_IDENTIFIER:
+            return res.failure(IllegalSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                'Excepted Identifier \n'
+            ))     
+
+        # set var_name to current token
+        # advance one index in tokens
+        var_name = self.current_tok
+        res.register_advancement()
+        self.advance()
+
+        # check if current token is '=', raise error if not 
+        if self.current_tok.type != TT_EQ:
+            return res.failure(IllegalSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Excepted '=' \n"
+            ))     
+
+        # advance one index in tokens
+        res.register_advancement()
+        self.advance()
+
+        # check if the expression is valid
+        # set start_value to the expression
+        start_value = res.register(self.expr())
+        if res.error: return res
+
+        # check for TO in tokens, raise error if not found
+        if not self.current_tok.matches(TT_KEYWORD, 'TO'):
+            return res.failure(IllegalSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                'Excepted TO \n'
+            ))     
+
+        # advance one index in tokens
+        res.register_advancement()
+        self.advance()
+
+        # check if the expression is valid
+        # set end_value to the expression
+        end_value = res.register(self.expr())
+        if res.error: return res
+
+        # check for STEP in tokens, evaluate expression if found
+        if self.current_tok.matches(TT_KEYWORD, 'STEP'):
+            # advance one index in tokens
             res.register_advancement()
             self.advance()
 
+            step_value = res.register(self.expr())
+            if res.error: return res
+        else:
+            step_value = None  
+        # check for THEN in tokens, raise error if not found
+        if not self.current_tok.matches(TT_KEYWORD, 'THEN'):
+            return res.failure(IllegalSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                'Excepted THEN \n'
+            ))     
+        
+        # advance one index in tokens
+        res.register_advancement()
+        self.advance()
+
+        # set expr to the expression if no errors
+        body = res.register(self.expr())
+        if res.error: return res
+
+        # return a successfull ForNode object
+        return res.success(ForNode(var_name, start_value, end_value, step_value, body))
+
+    def while_expr(self):
+        res = ParseResult()
+
+        # check for WHILE in tokens, raise error if not found
+        if not self.current_tok.matches(TT_KEYWORD, 'WHILE'):
+            return res.failure(IllegalSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                'Excepted WHILE \n'
+            ))
+        
+         # advance one index in tokens
+        res.register_advancement()
+        self.advance()
+
+        # check if the expression is valid
+        # set condition to the expression
+        condition = res.register(self.expr())
+        if res.error: return res             
+
+        # check for THEN in tokens, raise error if not found
+        if not self.current_tok.matches(TT_KEYWORD, 'THEN'):
+            return res.failure(IllegalSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                'Excepted THEN \n'
+            ))
+        
+        # advance one index in tokens
+        res.register_advancement()
+        self.advance()
+
+        # check if the expression is valid
+        # set condition to the expression
+        body = res.register(self.expr())
+        if res.error: return res            
+
+        # return a successfull ForNode object
+        return res.success(WhileNode(condition, body))
+
+    def expr(self):
+        res = ParseResult()
+
+        # Check if the token is VAR
+        if self.current_tok.matches(TT_KEYWORD, 'VAR'):
+            
+            # Advance one token
+            res.register_advancement()
+            self.advance()
+
+            # Check if the token is an IDENTIFIER
             if self.current_tok.type != TT_IDENTIFIER:
                 return res.failure(IllegalSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     'Exepected identifier'
                 ))
             
+            # Set the variable name to the IDENTIFIER token and advance
             var_name = self.current_tok
             res.register_advancement()
             self.advance()
 
+            # check if the token is '='
             if self.current_tok.type != TT_EQ:
                  return res.failure(IllegalSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     'Exepected equals'
                 ))     
 
+            # Advance one token and evaluate the expression
             res.register_advancement()
             self.advance()
             expr = res.register(self.expr())
 
+            # Return a new VarAssignNode if there are no errors
             if res.error: return res
             return res.success(VarAssignNode(var_name, expr))
 
-        # Exit the REPL 
+        # If the Token is REPL_EXIT then exit the REPL 
         if self.current_tok.matches(TT_KEYWORD, 'REPL_EXIT'):
             exit()
 
+        # The token must be either AND or OR
         node =  res.register(self.bin_op(self.comp_expr, ((TT_KEYWORD, 'AND'), (TT_KEYWORD, 'OR') )))
 
+        # Return successful node if no errors
         if res.error:
             return res.failure(IllegalSyntaxError(
             self.current_tok.pos_start, self.current_tok.pos_end,
@@ -248,20 +393,32 @@ class Parser:
         return res.success(node)
 
     def bin_op(self, func_a, ops, func_b=None):
+        
+        # If func_b is None, set it to func_a
         if func_b is None:
             func_b = func_a
 
-
         res = ParseResult()
+        
+        # Run func_a and check for error
         left = res.register(func_a())
         if res.error: return res
 
+        # Loop while there are still tokens to parse
         while self.current_tok.type in ops or (self.current_tok.type, self.current_tok.value) in ops: #not fast
+            # Store current token
             op_tok = self.current_tok
+            
+            # Advance one token
             res.register_advancement()
             self.advance()
+            
+            # Run func_b and check for error
+            # Set the result to right
             right = res.register(func_b())
             if res.error: return res
+            
+            # Set left to a new BinOpNode
             left = BinOpNode(left, op_tok, right)    
         
         return res.success(left)

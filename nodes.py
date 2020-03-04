@@ -58,3 +58,24 @@ class IfNode:
         self.pos_start = self.cases[0][0].pos_start
         # set pos_end to the else_case if there is one, otherwise the last cases' expression
         self.pos_end = self.else_case or self.cases[len(self.cases) - 1][0].pos_end
+
+class ForNode:
+    def __init__(self, var_name, start_value, end_value, step_value, body):
+        self.var_name = var_name
+        self.start_value = start_value
+        self.end_value = end_value
+        self.step_value = step_value
+        self.body = body
+
+        self.pos_start = self.var_name.pos_start
+
+        self.pos_end = self.body.pos_end
+
+class WhileNode:
+    def __init__(self, condition, body):
+        self.condition = condition
+        self.body = body
+
+        self.pos_start = self.condition.pos_start
+
+        self.pos_end = self.body.pos_end

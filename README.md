@@ -2,7 +2,15 @@
 A programming language for no reason
 
 # Features:
-## Right now there is only a REPL which can do the following:
+## Right now there is only a REPL.
+
+## To run the REPL:
+   
+- Clone this repo with `git clone https://github.com/youngpascal/whython`
+
+- type `python3 shell.py` in the terminal
+
+## Syntax & Logic:
 
 - Basic math operations and error handling:
 
@@ -25,3 +33,11 @@ A programming language for no reason
     `why > VAR x = IF 1 == 1 THEN 1 ELSE 0` will set x equal to 1
 
     `why > VAR x = IF 1 != 1 THEN 1 ELIF 1==1 THEN 0 ELSE 3` will set x equal to 0
+
+- For / While
+ 
+    `why > VAR x = 1`
+
+    `why > FOR i = 1 TO 10 STEP 2 THEN VAR x = x * i` will loop [x = x * i] while i < 10 with {optional: step} being the amount to add to {iterator: i} each loop
+
+    `why > WHILE x < 10 THEN VAR x = x + 1` will loop [x = x + 1] while x < 10 

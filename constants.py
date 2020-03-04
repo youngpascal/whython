@@ -19,6 +19,8 @@ TT_LT = 'LT'
 TT_GT = 'GT'
 TT_LTE = 'LTE'
 TT_GTE = 'GTE'
+TT_COMMA = 'COMMA'
+TT_ARROW = 'ARROW'
 
 DIGITS = '0123456789'
 LETTERS = ascii_letters
@@ -39,5 +41,6 @@ KEYWORDS = [
     'STEP',
     'THEN',
     'WHILE',
-    'THEN'
+    'THEN',
+    'FUN'
 ]

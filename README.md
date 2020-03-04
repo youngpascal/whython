@@ -41,3 +41,11 @@ A programming language for no reason
     `why > FOR i = 1 TO 10 STEP 2 THEN VAR x = x * i` will loop [x = x * i] while i < 10 with {optional: step} being the amount to add to {iterator: i} each loop
 
     `why > WHILE x < 10 THEN VAR x = x + 1` will loop [x = x + 1] while x < 10 
+
+- Functions
+
+    `why > FUN add (a, b) -> a + b` will create a function add()
+
+    `why > add(1, 2)` will output 3
+
+    `why > FUN () -> 1 + 2` will create an anonymous function that outputs 3

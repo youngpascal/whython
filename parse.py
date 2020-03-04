@@ -94,13 +94,188 @@ class Parser:
             if res.error: return res
             return res.success(while_expr)
 
+        elif tok.matches(TT_KEYWORD, 'FUN'):
+            func_def = res.register(self.func_def())
+            if res.error: return res
+            return res.success(func_def)
+
         return res.failure(IllegalSyntaxError(
             tok.pos_start, tok.pos_end,
-            'Excepted int, float, indentifier, +, -, ('
+            'Excepted IF, FOR, WHILE, FUN, int, float, indentifier, +, -, ('
         ))
 
+    def func_def(self):
+        res = ParseResult()
+
+        # check for FUN in tokens, raise error if not found
+        if not self.current_tok.matches(TT_KEYWORD, 'FUN'):
+            return res.failure(IllegalSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                'Excepted FUN \n'
+            ))
+
+        #advance one index in tokens
+        res.register_advancement()
+        self.advance()
+
+        # check if a function name as given
+        if self.current_tok.type == TT_IDENTIFIER:
+            var_name_tok = self.current_tok
+            
+            #advance one index in tokens
+            res.register_advancement()
+            self.advance()
+
+            # check for ( in tokens, raise error if not found
+            if self.current_tok.type != TT_LPAREN:
+                return res.failure(IllegalSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    'Excepted ( \n'
+                ))  
+
+        else:
+
+            # set function name to None
+            var_name_tok = None
+
+            # check for (
+            if self.current_tok.type != TT_LPAREN:
+                return res.failure(IllegalSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    'Excepted ( \n'
+                ))   
+           
+        #advance one index in tokens
+        res.register_advancement()
+        self.advance()  
+
+        arg_name_toks = []
+        
+        # check for identifier
+        if self.current_tok.type == TT_IDENTIFIER:
+            
+            # add to arguments
+            arg_name_toks.append(self.current_tok)
+            
+            #advance one index in tokens
+            res.register_advancement()
+            self.advance()          
+
+            # while current token is a comma
+            while self.current_tok.type == TT_COMMA:
+                
+                #advance one index in tokens
+                res.register_advancement()
+                self.advance()  
+                
+                # check for identifier
+                if self.current_tok.type != TT_IDENTIFIER:
+                    return res.failure(IllegalSyntaxError(
+                        self.current_tok.pos_start, self.current_tok.pos_end,
+                        'Excepted Identifier \n'
+                    ))  
+                
+                # append argument token
+                arg_name_toks.append(self.current_tok)
+                #advance one index in tokens
+                res.register_advancement()
+                self.advance()     
+            
+            # check for )
+            if self.current_tok.type != TT_RPAREN:
+                return res.failure(IllegalSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    'Excepted , or ) \n'
+                ))   
+        else:
+            
+            # check for ) if empty arguments
+            if self.current_tok.type != TT_RPAREN:
+                return res.failure(IllegalSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    'Excepted Identifier or ) \n'
+                ))         
+
+        #advance one index in tokens
+        res.register_advancement()
+        self.advance()   
+
+        # check for ->
+        if self.current_tok.type != TT_ARROW:
+            return res.failure(IllegalSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                'Excepted -> \n'
+            ))  
+        
+        #advance one index in tokens
+        res.register_advancement()
+        self.advance()   
+
+        # pass function body into node_to_return
+        node_to_return = res.register(self.expr())
+        if res.error: return res
+
+        # return sucessful FuncDefNode
+        return res.success(FuncDefNode(var_name_tok, arg_name_toks, node_to_return))   
+
+    def call (self):
+        res = ParseResult()
+
+        # check for an atom
+        atom = res.register(self.atom())
+        if res.error: return res
+
+        # check for ( in tokens
+        if self.current_tok.type == TT_LPAREN:
+
+            #advance one index in tokens
+            res.register_advancement()
+            self.advance()
+            
+            arg_nodes = []
+
+            # check for an empty body
+            if self.current_tok.type == TT_RPAREN:
+                    
+                #advance one index in tokens
+                res.register_advancement()
+                self.advance()  
+            else:
+
+                # add the expression to arg_nodes
+                arg_nodes.append(res.register(self.expr()))
+                if res.error:
+                    return res.failure(IllegalSyntaxError(
+                        self.current_tok.pos_start, self.current_tok.pos_end,
+                        'Excepted ), or the beginnig of an expression (i.e. VAR/IF int/float) \n'
+                    ))                   
+
+                # while there is a comma
+                while self.current_tok.type == TT_COMMA:
+                    #advance one index in tokens
+                    res.register_advancement()
+                    self.advance()  
+
+                    # add expression to arg_nodes
+                    arg_nodes.append(res.register(self.expr()))
+                    if res.error: return res
+                
+                if self.current_tok.type != TT_RPAREN:
+                    return res.failure(IllegalSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    'Excepted ) \n'
+                    ))                   
+
+                #advance one index in tokens
+                res.register_advancement()
+                self.advance()  
+
+            # return either a sucessfull CallNode or atom
+            return res.success(CallNode(atom, arg_nodes))
+        return res.success(atom)
+
     def power(self):
-        return self.bin_op(self.atom, (TT_POWER, ), self.factor)
+        return self.bin_op(self.call, (TT_POWER, ), self.factor)
 
     def factor(self):
         res = ParseResult()
@@ -387,7 +562,7 @@ class Parser:
         if res.error:
             return res.failure(IllegalSyntaxError(
             self.current_tok.pos_start, self.current_tok.pos_end,
-            'Exepected VAR, int, float, indentifier, +, -, or ( \n'
+            'Exepected IF, FOR, WHILE, FUN, VAR, int, float, indentifier, +, -, or ( \n'
         ))     
 
         return res.success(node)
